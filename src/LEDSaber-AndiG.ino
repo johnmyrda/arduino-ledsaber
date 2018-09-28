@@ -5,8 +5,8 @@
 #include <FastLED.h>
 
 // define our LED blade properties
-#define BLADE_LEDS_COUNT  120 // 72 for shoto, 108 for 75cm, 144 for 1m
-#define BLADE_LEDS_PIN    A2
+#define BLADE_LEDS_COUNT  55 // 110 total, 55 is half
+#define BLADE_LEDS_PIN    A3
 
 // default colour customization
 #define BLADE_BRIGHTNESS  127
@@ -17,22 +17,13 @@
 // inactivity timeout
 #define INACTIVITY_TIMEOUT 8000 // about 30 seconds
 
-// voltage shutdown propertues
-#define VOLTAGE_SHUTDOWN       (3.6f * 3.0f)     // minimum voltage required
-#define VOLTAGE_SENSOR_RATIO   (2.10f / 12.60f)  // ratio between sensor voltage and real battery voltage (1:6 by default)
-#define VOLTAGE_SENSOR_PIN      A3               // pin used by voltage sensor
-#define VOLTAGE_BEEPS                // do we beep when undervoltage?
-#define VOLTAGE_BEEPS_ON        200  // noise time
-#define VOLTAGE_BEEPS_OFF       400  // silence time
-#define VOLTAGE_BEEPS_FREQ      256  // beep frequency
-
 // when using the gyro values to calculate angular speed, we only want the "vertical" and "horizontal" swing axes, 
 // not the "handle twist" rotation. Which of the three (0,1,2) axes to use?
 #define GYRO_HORIZONTAL 0
 #define GYRO_VERTICAL   2
 
 // allocate the memory buffer for the LED array
-CRGB blade_leds[BLADE_LEDS_COUNT];
+CRGB blade_leds[BLADE_LEDS_COUNT*2];
 
 // local extentions
 #include "properties.h"
@@ -42,11 +33,11 @@ CRGB blade_leds[BLADE_LEDS_COUNT];
 // enable rotaty encoder switch control
 #define CONTROL_ROTARY
 // rotary control direction pins
-#define ROTARY_D1_PIN    15
-#define ROTARY_D2_PIN    16
+#define ROTARY_D1_PIN    0
+#define ROTARY_D2_PIN    1
 #define ROTARY_GND1_PIN  14
 // rotary control switch pins
-#define ROTARY_SW_PIN    8
+#define ROTARY_SW_PIN    9
 #define ROTARY_GND2_PIN  6
 
 // flip these if your knob goes backwards from what you expect
@@ -89,7 +80,9 @@ void setup() {
   // enable watchdog timer
   //wdt_enable(WDTO_1S); // no, we cannot do this on a 32u4, it breaks the bootloader upload
   // setup the blade strip
-  LEDS.addLeds<WS2812,BLADE_LEDS_PIN,GRB>(blade_leds,BLADE_LEDS_COUNT);
+  LEDS.addLeds<WS2812,BLADE_LEDS_PIN,GRB>(blade_leds,BLADE_LEDS_COUNT*2);
+  // The "*2" is because the original design used two led strips with the same data input
+  // and I use one strip with one input, so the leds need to be mirrored. 
 #ifdef STATUS_LEDS
   // setup the status strip
   LEDS.addLeds<WS2812,STATUS_LEDS_PIN,GRB>(status_leds,STATUS_LEDS_COUNT);
@@ -108,7 +101,7 @@ void setup() {
 }
 
 void loop() {
-  int i,n, delta;
+  int delta;
   float av,rv;
   // the program is alive
   //wdt_reset();
@@ -158,41 +151,6 @@ void loop() {
   // use some entropy to modulate the sound volume
   snd_buzz_speed = snd_buzz_freq + (entropy & 3);
   snd_hum1_speed = snd_hum1_freq;  
-
-#ifdef VOLTAGE_SHUTDOWN
-  // read the current voltage
-  n = analogRead(VOLTAGE_SENSOR_PIN);
-  // below minimum volts?
-  int undervolt = (int)( (VOLTAGE_SHUTDOWN) * (VOLTAGE_SENSOR_RATIO) * 1024.0f / 5.0f  );
-  // Serial.print("Min "); Serial.print(undervolt); Serial.print("  Vin "); Serial.println(n); 
-  if( n < undervolt ) {
-    if(shutdown_counter == 0) {
-      // we are undervolt
-      blade_mode = BLADE_MODE_UNDERVOLT;
-      // flip mode
-      if(shutdown_state==0) {
-        // beep
-        shutdown_state = 1;
-        shutdown_counter = VOLTAGE_BEEPS_ON;
-      } else { 
-        // silence     
-        shutdown_state = 0;
-        shutdown_counter = VOLTAGE_BEEPS_OFF;
-      }
-    } else {
-      shutdown_counter--;
-    }
-  } else {
-    // above minimum volts
-    shutdown_counter = VOLTAGE_BEEPS_OFF;
-    shutdown_state = 0;
-    if(blade_mode == BLADE_MODE_UNDERVOLT) {
-      // we're now just retracting
-      blade_mode == BLADE_MODE_EXTINGUISH;
-    }
-  }
-#endif
-
 
 #ifdef CONTROL_ROTARY
   // check the controls
@@ -285,30 +243,5 @@ void loop() {
         blade_mode = BLADE_MODE_OFF;
       }
       break;
-#ifdef VOLTAGE_SHUTDOWN
-    case BLADE_MODE_UNDERVOLT:
-      // retract
-      if(blade_length > 0) {
-        blade_length--; update_blade(); 
-      }
-      // blink the light
-      blade_leds[0] = (shutdown_state == 0) ? CRGB::Black : CRGB::Red;
-      LEDS.show();
-      // use the beeps!
-      snd_buzz_volume = 0;
-      snd_hum1_volume = 0;
-#ifdef VOLTAGE_BEEPS
-      if(shutdown_state == 0) {
-        snd_hum2_volume = 0;
-      } else {        
-        snd_hum2_speed = VOLTAGE_BEEPS_FREQ;
-        snd_hum2_volume = 255;
-      }
-#else
-      snd_hum2_volume = 0;
-#endif
-      break;
-#endif
   }
 }
-

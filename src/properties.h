@@ -175,6 +175,11 @@ void update_blade() {
     blade_leds[i] = (i<blade_length) ? color : CRGB::Black;
   }
   // update the LEDS now
+  //mirror the leds on the other side
+  for(int led_index = 0; led_index < BLADE_LEDS_COUNT; led_index++){
+    blade_leds[BLADE_LEDS_COUNT*2 - 1 - led_index] = blade_leds[led_index];
+  }
+
   LEDS.show();
 }
 
@@ -184,13 +189,42 @@ void ignite() {
   }
 }
 
+void print_properties(){
+  Serial.print("button_mode: ");
+  Serial.println(button_mode);
+
+  Serial.println("Sound Properties");
+  Serial.print("global_volume: ");
+  Serial.println(global_volume);
+
+  Serial.print("snd_buzz_freq: ");
+  Serial.println(snd_buzz_freq);
+  Serial.print("snd_hum1_freq: ");
+  Serial.println(snd_hum1_freq);
+  Serial.print("snd_hum2_freq: ");
+  Serial.println(snd_hum2_freq);
+  Serial.print("snd_hum2_doppler: ");
+  Serial.println(snd_hum2_doppler);
+  Serial.print("snd_echo_decay: ");
+  Serial.println(snd_echo_decay);
+
+  Serial.print("Blade Color");
+  Serial.print("blade_hue: ");
+  Serial.println(blade_hue);
+  Serial.print("blade_saturation: ");
+  Serial.println(blade_saturation);
+  Serial.print("blade_brightness: ");
+  Serial.println(blade_brightness);
+  Serial.print("extend_speed: ");
+  Serial.println(extend_speed);
+}
+
 void extinguish() {
   if(blade_mode == BLADE_MODE_ON) {
     blade_mode = BLADE_MODE_EXTINGUISH;
     // since this was done gracefully, store the current blade settings for next time
     eeprom_save();
+    print_properties();
   }
 }
-
-
 
