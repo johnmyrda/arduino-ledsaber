@@ -1,5 +1,3 @@
-#ifdef CONTROL_ROTARY
-
 #define BUTTON_DEBOUNCE  3
 #define ROTARY_DEBOUNCE  2
 
@@ -87,7 +85,9 @@ void rotary_delta(int d) {
           }
           break;
         // global volume
-        case 1: global_volume = value_delta(global_volume, d*16, 0, 255); break;
+        case 1:
+          global_volume = value_delta(global_volume, d*16, 0, 255);
+          break;
         // blade preset
         case 2: 
           // change preset number
@@ -181,22 +181,9 @@ void start_inputs() {
   pinMode(ROTARY_SW_PIN, INPUT_PULLUP); 
   pinMode(ROTARY_D1_PIN, INPUT_PULLUP); 
   pinMode(ROTARY_D2_PIN, INPUT_PULLUP); 
-#ifdef ROTARY_VCC_PIN
-  pinMode(ROTARY_VCC_PIN, OUTPUT);  digitalWrite(ROTARY_VCC_PIN, HIGH);
-#endif
-#ifdef ROTARY_GND1_PIN
-  pinMode(ROTARY_GND1_PIN, OUTPUT);  digitalWrite(ROTARY_GND1_PIN, LOW);
-#endif
-#ifdef ROTARY_GND2_PIN
-  pinMode(ROTARY_GND2_PIN, OUTPUT);  digitalWrite(ROTARY_GND2_PIN, LOW);
-#endif
   // initial state
   knob.read();
   knob.write(0);
   sw_state = digitalRead(ROTARY_SW_PIN);
   update_blade();
 }
-
-
-#endif
-
