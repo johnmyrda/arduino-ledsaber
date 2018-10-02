@@ -1,9 +1,4 @@
-
-//#define AUDIO_PWM9
 #define AUDIO_PWM8
-//#define AUDIO_PWM7
-//#define AUDIO_PWM6
-//#define AUDIO_PWM4
 
 // audio properties
 int snd_buzz_speed = 47;
@@ -13,13 +8,6 @@ int snd_hum2_speed = 52;
 byte snd_buzz_volume = 0;
 byte snd_hum1_volume = 0;
 byte snd_hum2_volume = 0;
-
-/*
-int snd_tap1_delay1 = 32; int snd_tap1_delay2 = snd_tap1_delay1/2;
-int snd_tap2_delay1 = 40; int snd_tap2_delay2 = snd_tap1_delay2/2;
-int snd_tap1_volume = 2;
-int snd_tap2_volume = 2;
-*/
 
 // sound fonts
 #define BUZZ_WAVE_LENGTH 205
@@ -97,88 +85,39 @@ byte sound_sample(int * index, byte * wave, int wave_speed, byte wave_length) {
   return sample / 256;
 }
 
-/*
-// sound ring buffer (record our own output for echo/harmonic effects)
-byte sound_ring[1024];
-unsigned int sound_ring_index = 0;
-
-inline int sound_ring_sample(int ago) {
-  unsigned int i = (sound_ring_index - ago ) & 0x03ff;
-  return sound_ring[i];
-}
-*/
-
 // sound generators
 int snd_index_1 = 0;
 int snd_index_2 = 0;
 int snd_index_3 = 0;
 
 ISR(TIMER1_COMPA_vect) {
-  //digitalWrite(8,HIGH);
   // combine the wave and global volume into channel volumes
-  unsigned int v1 = snd_buzz_volume; //v1 *= global_volume; v1 = v1 >> 8;
-  unsigned int v2 = snd_hum1_volume; //v2 *= global_volume; v2 = v2 >> 8;
-  unsigned int v3 = snd_hum2_volume; //v3 *= global_volume; v3 = v3 >> 8;
+  unsigned int v1 = snd_buzz_volume;
+  unsigned int v2 = snd_hum1_volume; 
+  unsigned int v3 = snd_hum2_volume; 
   // sample our primary waveforms, and multiply by their master volumes
   int s1 = ( sound_sample(&snd_index_1, buzz_wave, snd_buzz_speed, BUZZ_WAVE_LENGTH ) - 128) * v1;
   int s2 = ( sound_sample(&snd_index_2, hum1_wave, snd_hum1_speed, HUM1_WAVE_LENGTH) - 128) * v2;
   int s3 = ( sound_sample(&snd_index_3, hum2_wave, snd_hum2_speed, HUM2_WAVE_LENGTH) - 128) * v3;
-  // combine the samples together
-  //long n = 0; n += s1; n += s2; n += s3;
-  // clip
-  /*
-  unsigned int sample;
-  if(n >= 0x8000) {
-    sample = 0xFFFF;
-  } else if(n <= -0x8000) {
-    sample = 0x0000;
-  } else {
-    sample = 0x8000 + n;
-  }
-  */
+
   unsigned int sample = 0x8000 + s1 + s2 + s3;
 
-  
-
   // update the PWM value with the top few bits
-#ifdef AUDIO_PWM9
-  OCR4B = (sample >> 7) & 0x1ff;
-#endif
+
 #ifdef AUDIO_PWM8
   OCR4B = (sample >> 8) & 0xff;
 #endif
-#ifdef AUDIO_PWM7
-  OCR4B = (sample >> 9) & 0x7f;
-#endif
-#ifdef AUDIO_PWM6
-  OCR4B = (sample >> 10) & 0x3f;
-#endif
-#ifdef AUDIO_PWM4
-  OCR4B = (sample >> 12) & 0x0f;
-#endif
-  /*
-  // store the sample in the ring
-  sound_ring[sound_ring_index] = sample >> 8;
-  sound_ring_index = (sound_ring_index + 1) & 0x03FF;
-  */
-  // done
-  //digitalWrite(8,LOW);
+
 }
  
 void enable_intr(){
 }
 
 void snd_init() {
-  //pinMode(8, OUTPUT);
-  //digitalWrite(8,LOW);
+  //start up TPA2005D1
   pinMode(10, OUTPUT);
-  /*
-  // init the internal PLL
-  PLLFRQ = _BV(PDIV2);
-  PLLCSR = _BV(PLLE);
-  while(!(PLLCSR & _BV(PLOCK)));
-  PLLFRQ |= _BV(PLLTM0); // PCK 48MHz
-  */
+  pinMode(AUDIO_SHUTDOWN_PIN, OUTPUT);
+  digitalWrite(AUDIO_SHUTDOWN_PIN, LOW);// Start with TPA2005D1 off
   // setup timer4 
   TCCR4A = (1<<PWM4B) | (0<<COM4B1) | (1<<COM4B0);  
   TCCR4B = (0<<CS43) | (0<<CS42) | (0<<CS41) | (1<<CS40);  
@@ -186,22 +125,9 @@ void snd_init() {
   // TCCR4D = (1<<WGM40); //set it to phase and frequency correct mode    
   TCCR4D = (0<<WGM41) | (0<<WGM40); //set it to fast PWM mode    
   // TCCR4C = 0;
-#ifdef AUDIO_PWM9
-  OCR4C = 255; // timer max
-#endif
 #ifdef AUDIO_PWM8
   OCR4C = 128; // timer max
 #endif
-#ifdef AUDIO_PWM7
-  OCR4C = 64; // timer max
-#endif
-#ifdef AUDIO_PWM6
-  OCR4C = 32; // timer max
-#endif
-#ifdef AUDIO_PWM4
-  OCR4C = 8; // timer max
-#endif
-
   // TCCR4C |= (1<<COM4B1); // start timer
  
   // setup timer 1
@@ -213,8 +139,6 @@ void snd_init() {
   // enable timer 1 interrupt
   // TIMSK1 |= _BV(TOIE1);
   TIMSK1 |= (1<<OCIE1A);
-  
-  // 
 } 
 
 void snd_signal(unsigned int sample) {    

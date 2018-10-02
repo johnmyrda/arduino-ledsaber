@@ -184,6 +184,7 @@ void update_blade() {
 }
 
 void ignite() {
+  digitalWrite(AUDIO_SHUTDOWN_PIN, HIGH); // enable TPA2005D1
   if(blade_mode == BLADE_MODE_OFF) {
     blade_mode = BLADE_MODE_IGNITE;
   }

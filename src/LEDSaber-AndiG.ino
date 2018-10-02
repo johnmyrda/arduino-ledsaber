@@ -25,20 +25,19 @@
 // allocate the memory buffer for the LED array
 CRGB blade_leds[BLADE_LEDS_COUNT*2];
 
+//Shutdown pin for TPA2005D1
+#define AUDIO_SHUTDOWN_PIN 8
+
 // local extentions
 #include "properties.h"
 #include "mpu6050.h"
 #include "audio.h"
 
-// enable rotaty encoder switch control
-#define CONTROL_ROTARY
 // rotary control direction pins
 #define ROTARY_D1_PIN    0
 #define ROTARY_D2_PIN    1
-#define ROTARY_GND1_PIN  14
 // rotary control switch pins
 #define ROTARY_SW_PIN    9
-#define ROTARY_GND2_PIN  6
 
 // flip these if your knob goes backwards from what you expect
 #define ROTARY_DIR_A    -1
@@ -68,12 +67,6 @@ int gyro_hum1_volume = 0;
 int accel_hum1_volume = 0;
 int inactivity_counter = INACTIVITY_TIMEOUT;
 
-#ifdef VOLTAGE_SHUTDOWN
-byte shutdown_state = 0;
-int  shutdown_counter = 0;
-#endif
-
-
 void setup() {
   // start serial port?
   Serial.begin(57600);
@@ -83,10 +76,6 @@ void setup() {
   LEDS.addLeds<WS2812,BLADE_LEDS_PIN,GRB>(blade_leds,BLADE_LEDS_COUNT*2);
   // The "*2" is because the original design used two led strips with the same data input
   // and I use one strip with one input, so the leds need to be mirrored. 
-#ifdef STATUS_LEDS
-  // setup the status strip
-  LEDS.addLeds<WS2812,STATUS_LEDS_PIN,GRB>(status_leds,STATUS_LEDS_COUNT);
-#endif
   LEDS.setDither( 0 );
   blade_length = 0; update_blade(); LEDS.show();
   // start i2c
@@ -139,26 +128,18 @@ void loop() {
     if(velocity_factor>1.0) velocity_factor = 1.0;
   }
 
-#ifdef CONTROL_ROTARY
+
   // read inputs
   check_button();
   check_rotary();
-#else
-  // check knob
-  n = analogRead(A0);
-  add_entropy(n,0x03); // add two bits of entropy
-#endif
   // use some entropy to modulate the sound volume
   snd_buzz_speed = snd_buzz_freq + (entropy & 3);
-  snd_hum1_speed = snd_hum1_freq;  
+  snd_hum1_speed = snd_hum1_freq;
 
-#ifdef CONTROL_ROTARY
-  // check the controls
-  check_rotary();
-#endif  
   // current mode
   switch(blade_mode) {
-    case BLADE_MODE_OFF: 
+    case BLADE_MODE_OFF:
+      digitalWrite(AUDIO_SHUTDOWN_PIN, LOW); // enable TPA2005D1
       snd_buzz_volume = 0;
       snd_hum1_volume = 0;
       snd_hum2_volume = 0;
